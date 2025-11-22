@@ -1,0 +1,249 @@
+﻿@{
+    ViewData["Title"] = "AI Draw Canvas";
+}
+
+<style>
+    .toolbar {
+        display: flex;
+        gap: 10px;
+        padding: 10px;
+        background: #f1f1f1;
+        border-bottom: 1px solid #ccc;
+        flex-wrap: wrap;
+    }
+
+        .toolbar button, .toolbar input {
+            padding: 6px 12px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+    #drawingCanvas {
+        border: 1px solid #000;
+        margin-top: 10px;
+        cursor: crosshair;
+        display: block;
+        image-rendering: pixelated;
+    }
+
+    .cursor-brush {
+        cursor: url('/icons/brush.png') 0 0, auto;
+    }
+
+    .cursor-pencil {
+        cursor: url('/icons/pencil.png') 0 0, auto;
+    }
+
+    .cursor-eraser {
+        cursor: url('/icons/eraser.png') 0 0, auto;
+    }
+</style>
+
+<div class="toolbar">
+    <button id="brushTool">🖌 Brush</button>
+    <button id="pencilTool">✏️ Pencil</button>
+    <button id="eraserTool">🩹 Eraser</button>
+    <button id="circleTool">⚪ Circle</button>
+    <button id="rectTool">⬛ Rectangle</button>
+    <label>Size:</label><input type="range" id="brushSize" min="1" max="30" value="5">
+    <label>Color:</label><input type="color" id="brushColor" value="#000000">
+    <button id="clearCanvas">Clear</button>
+    <button id="saveDrawing">Save</button>
+</div>
+
+<div class="toolbar">
+    <input type="text" id="aiPrompt" placeholder="Enter AI Prompt" style="flex:1;">
+    <button id="generateAI">Generate AI Image</button>
+</div>
+
+
+<canvas id="drawingCanvas" width="1300" height="800"></canvas>
+
+@section Scripts {
+
+    <script>
+        const canvas = document.getElementById("drawingCanvas");
+        const ctx = canvas.getContext("2d");
+
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+
+        let drawing = false;
+        let brushSize = document.getElementById("brushSize").value;
+        let brushColor = document.getElementById("brushColor").value;
+        let currentTool = "brush";
+        let startX = 0, startY = 0;
+
+        // Store all drawn shapes for persistent drawing
+        let shapes = [];
+
+        // ---------------- DRAWING EVENTS ----------------
+        canvas.addEventListener("mousedown", (e)=>{
+            drawing = true;
+            startX = e.offsetX; startY = e.offsetY;
+            if(currentTool==="pencil") { ctx.beginPath(); ctx.moveTo(startX,startY); }
+        });
+
+        canvas.addEventListener("mousemove", (e)=>{
+            if(!drawing) return;
+
+            if(currentTool==="eraser"){
+                ctx.fillStyle="#ffffff";
+                ctx.beginPath();
+                ctx.arc(e.offsetX,e.offsetY,brushSize/2,0,Math.PI*2);
+                ctx.fill();
+                shapes.push({tool:"eraser", x:e.offsetX, y:e.offsetY, size:brushSize});
+            }
+            else if(currentTool==="pencil"){
+                ctx.strokeStyle=brushColor;
+                ctx.lineWidth=Math.max(1,brushSize/2);
+                ctx.lineCap="round";
+                ctx.lineTo(e.offsetX,e.offsetY);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(e.offsetX,e.offsetY);
+                shapes.push({tool:"pencil", x:e.offsetX, y:e.offsetY, size:brushSize, color:brushColor});
+            }
+            else if(currentTool==="brush"){
+                ctx.fillStyle=brushColor;
+                ctx.beginPath();
+                ctx.arc(e.offsetX,e.offsetY,brushSize/2,0,Math.PI*2);
+                ctx.fill();
+                shapes.push({tool:"brush", x:e.offsetX, y:e.offsetY, size:brushSize, color:brushColor});
+            }
+            else if(currentTool==="rect" || currentTool==="circle"){
+                redrawCanvas();
+                drawShape(ctx, startX, startY, e.offsetX, e.offsetY, currentTool, brushColor, brushSize);
+            }
+        });
+
+        canvas.addEventListener("mouseup", (e)=>{
+            if(!drawing) return;
+            drawing=false;
+            if(currentTool==="rect" || currentTool==="circle"){
+                shapes.push({tool:currentTool, x1:startX, y1:startY, x2:e.offsetX, y2:e.offsetY, color:brushColor, size:brushSize});
+                redrawCanvas();
+            }
+            ctx.beginPath();
+        });
+
+        canvas.addEventListener("mouseleave", ()=>{
+            drawing=false;
+            ctx.beginPath();
+        });
+
+        // ---------------- TOOL SELECTION ----------------
+        function selectTool(tool){
+            currentTool = tool;
+            canvas.classList.remove("cursor-brush","cursor-pencil","cursor-eraser");
+            if(tool==="brush") canvas.classList.add("cursor-brush");
+            else if(tool==="pencil") canvas.classList.add("cursor-pencil");
+            else if(tool==="eraser") canvas.classList.add("cursor-eraser");
+            else canvas.classList.add("cursor-crosshair");
+            if(tool==="pencil") ctx.beginPath();
+        }
+
+        document.getElementById("brushTool").addEventListener("click", ()=>selectTool("brush"));
+        document.getElementById("pencilTool").addEventListener("click", ()=>selectTool("pencil"));
+        document.getElementById("eraserTool").addEventListener("click", ()=>selectTool("eraser"));
+        document.getElementById("circleTool").addEventListener("click", ()=>selectTool("circle"));
+        document.getElementById("rectTool").addEventListener("click", ()=>selectTool("rect"));
+        document.getElementById("brushSize").addEventListener("input", (e)=>brushSize=e.target.value);
+        document.getElementById("brushColor").addEventListener("input", (e)=>brushColor=e.target.value);
+
+        // ---------------- CLEAR CANVAS ----------------
+        document.getElementById("clearCanvas").addEventListener("click", ()=>{
+            shapes = [];
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle="#ffffff";
+            ctx.fillRect(0,0,canvas.width,canvas.height);
+        });
+
+        // ---------------- SAVE ----------------
+        document.getElementById("saveDrawing").addEventListener("click", async()=>{
+            const name = prompt("Enter a name:");
+            if(!name) return alert("Name required!");
+            const strokeData = canvas.toDataURL("image/png");
+            const drawingObject = {name, strokeData};
+            try{
+                const response = await fetch('@Url.Action("SaveDrawing", "AIDrawWebApp")',{
+                    method:"POST",
+                    headers:{"Content-Type":"application/json"},
+                    body: JSON.stringify(drawingObject)
+                });
+                const result = await response.json();
+                alert(result.message || "Saved successfully!");
+            }catch(err){ alert("Error saving: "+err); }
+
+            const link=document.createElement("a");
+            link.href=strokeData;
+            link.download=name+".png";
+            link.click();
+        });
+
+        // ---------------- DRAW SHAPES (Outline Only) ----------------
+        function drawShape(ctx, x1,y1,x2,y2,shape,color,size){
+            ctx.strokeStyle=color;
+            ctx.lineWidth=size;
+            if(shape==="rect"){
+                ctx.strokeRect(x1,y1,x2-x1,y2-y1);
+            }
+            else if(shape==="circle"){
+                const centerX=(x1+x2)/2;
+                const centerY=(y1+y2)/2;
+                const radiusX=Math.abs(x2-x1)/2;
+                const radiusY=Math.abs(y2-y1)/2;
+                ctx.beginPath();
+                ctx.ellipse(centerX,centerY,radiusX,radiusY,0,0,2*Math.PI);
+                ctx.stroke();
+            }
+        }
+
+        // ---------------- REDRAW ALL SHAPES ----------------
+        function redrawCanvas(){
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle="#ffffff";
+            ctx.fillRect(0,0,canvas.width,canvas.height);
+            for(const s of shapes){
+                if(s.tool==="brush" || s.tool==="pencil"){
+                    ctx.fillStyle=s.color;
+                    ctx.beginPath();
+                    ctx.arc(s.x,s.y,s.size/2,0,Math.PI*2);
+                    ctx.fill();
+                } else if(s.tool==="eraser"){
+                    ctx.fillStyle="#ffffff";
+                    ctx.beginPath();
+                    ctx.arc(s.x,s.y,s.size/2,0,Math.PI*2);
+                    ctx.fill();
+                } else if(s.tool==="rect" || s.tool==="circle"){
+                    drawShape(ctx, s.x1,s.y1,s.x2,s.y2,s.tool,s.color,s.size);
+                }
+            }
+        }
+
+        // ---------------- AI GENERATION ----------------
+        document.getElementById("generateAI").addEventListener("click", async ()=>{
+            const prompt = document.getElementById("aiPrompt").value;
+            if(!prompt) return alert("Enter a prompt!");
+            try{
+                const response = await fetch('/AIDrawWebApp/GenerateAI',{
+                    method:"POST",
+                    headers:{"Content-Type":"application/json"},
+                    body:JSON.stringify({prompt})
+                });
+                const data = await response.json();
+                const imageBase64 = data.ImageBase64 ?? data.imageBase64;
+                if(imageBase64){
+                    const img=new Image();
+                    img.src="data:image/png;base64,"+imageBase64;
+                    img.onload=()=>ctx.drawImage(img,0,0,canvas.width,canvas.height);
+                }
+            }catch(err){ console.error("AI error:",err);}
+        });
+
+        selectTool("brush");
+    </script>
+
+}
