@@ -16,7 +16,7 @@ The project is built with **ASP.NET Core Web API** (backend) and **ASP.NET Core 
 - Display AI-generated images inside the UI.
 - Secure API communication between frontend and backend.
 
-### 🏗 Architecture
+### Architecture
 - **AIDrawWebAPI** → Backend (REST API)
 - **AIDrawWebApp** → Frontend (MVC application)
 - Controllers handle:
@@ -27,7 +27,7 @@ The project is built with **ASP.NET Core Web API** (backend) and **ASP.NET Core 
 
 ---
 
-## ⚙️ Technologies Used
+## Technologies Used
 
 ### Backend
 - ASP.NET Core Web API
