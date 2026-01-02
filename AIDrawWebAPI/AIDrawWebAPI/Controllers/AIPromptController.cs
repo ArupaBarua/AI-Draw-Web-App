@@ -2,7 +2,6 @@
 using Microsoft.AspNetCore.Mvc;
 using OpenAI;
 using OpenAI.Images;
-using System.Threading.Tasks;
 
 namespace AIDrawWebAPI.Controllers
 {
@@ -10,11 +9,12 @@ namespace AIDrawWebAPI.Controllers
     [ApiController]
     public class AIPromptController : ControllerBase
     {
-        private readonly string apiKey;
+        private readonly string _apiKey;
 
         public AIPromptController(IConfiguration config)
         {
-            var apiKey = config["OpenAI:ApiKey"];
+            _apiKey = config["OpenAI:ApiKey"]
+                      ?? throw new Exception("OpenAI API key is missing");
         }
 
         [HttpPost("generate")]
@@ -25,17 +25,18 @@ namespace AIDrawWebAPI.Controllers
 
             try
             {
-                var imageClient = new ImageClient("dall-e-3", apiKey); 
-                var generateOption = new ImageGenerationOptions
+                var imageClient = new ImageClient("dall-e-3", _apiKey);
+
+                var options = new ImageGenerationOptions
                 {
                     Quality = GeneratedImageQuality.High,
                     Size = GeneratedImageSize.W1024xH1024,
                     Style = GeneratedImageStyle.Natural,
                     ResponseFormat = GeneratedImageFormat.Uri
                 };
-                string input = request.Prompt;
 
-                var response = await imageClient.GenerateImageAsync(input, generateOption);
+                var response = await imageClient.GenerateImageAsync(request.Prompt, options);
+
                 var imageUrl = response.Value.ImageUri;
 
                 using var http = new HttpClient();
@@ -47,15 +48,14 @@ namespace AIDrawWebAPI.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine("IMAGE API ERROR: " + ex.ToString());
+                Console.WriteLine("IMAGE API ERROR: " + ex);
 
                 return StatusCode(500, new
                 {
                     message = "Error generating image",
-                    details = ex.ToString()
+                    details = ex.Message
                 });
             }
         }
-
     }
 }

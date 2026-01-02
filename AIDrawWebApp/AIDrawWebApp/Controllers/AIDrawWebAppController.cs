@@ -5,11 +5,12 @@ namespace AIDrawWebApp.Controllers
 {
     public class AIDrawWebAppController : Controller
     {
-        private string url = "https://localhost:7239/api/AIDraw/";
+        private readonly string backendBaseUrl;
         private readonly HttpClient httpClient;
 
-        public AIDrawWebAppController()
+        public AIDrawWebAppController(IConfiguration config)
         {
+            backendBaseUrl = config["BackendBaseUrl"] ?? "http://backend:8080";
             var handler = new HttpClientHandler
             {
                 ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
@@ -30,7 +31,7 @@ namespace AIDrawWebApp.Controllers
                 return BadRequest(new { message = "Invalid drawing name!" });
             }
 
-            var response = await httpClient.PostAsJsonAsync(url + "save", drawing);
+            var response = await httpClient.PostAsJsonAsync($"{backendBaseUrl}/api/AIDraw/save", drawing);
 
             if(response.IsSuccessStatusCode)
             {
@@ -49,7 +50,7 @@ namespace AIDrawWebApp.Controllers
             try
             {
                 var response = await httpClient.PostAsJsonAsync(
-                    "https://localhost:7239/api/AIPrompt/generate", request);
+                    $"{backendBaseUrl}/api/AIPrompt/generate", request);
 
                 var content = await response.Content.ReadAsStringAsync();
                 Console.WriteLine("Backend Raw Response: " + content);

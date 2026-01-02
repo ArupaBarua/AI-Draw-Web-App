@@ -1,0 +1,42 @@
+version: "3.9"
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: aidraw-sql
+    environment:
+      SA_PASSWORD: ${SA_PASSWORD}
+      ACCEPT_EULA: "Y"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sql_data:/var/opt/mssql
+
+  backend:
+    build:
+      context: ./AIDrawWebAPI/AIDrawWebAPI
+    container_name: aidraw-backend
+    depends_on:
+      - sqlserver
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__dbcs: Server=sqlserver;Database=AIDrawDB;User=sa;Password=${SA_PASSWORD};Encrypt=True;TrustServerCertificate=True;
+
+      OpenAI__ApiKey: ${OPENAI_API_KEY}
+    ports:
+      - "7239:8080"
+
+  frontend:
+    build:
+      context: ./AIDrawWebApp/AIDrawWebApp
+    container_name: aidraw-frontend
+    depends_on:
+      - backend
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      BackendBaseUrl: http://backend:8080
+    ports:
+      - "7164:8081"
+
+volumes:
+  sql_data:
