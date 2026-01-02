@@ -1,6 +1,6 @@
 # AIDraw – AI-Powered Drawing Web Application
 
-AIDraw is a full-stack web application that allows users to **create drawings**, **save them** and **generate AI-powered artwork** using the OpenAI API.  
+AIDraw is a web application that allows users to **create drawings**, **save them** and **generate AI-powered artwork** using the OpenAI API.  
 The project is built with **ASP.NET Core Web API** (backend) and **ASP.NET Core MVC** (frontend).
 
 ---
