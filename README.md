@@ -33,8 +33,7 @@ The project is built with **ASP.NET Core Web API** (backend) and **ASP.NET Core 
 - ASP.NET Core Web API
 - Entity Framework Core
 - SQL Server
-- Dependency Injection
-- RESTful API design
+- RESTful API
 
 ### Frontend
 - ASP.NET Core MVC
