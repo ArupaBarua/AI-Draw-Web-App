@@ -1,7 +1,7 @@
 # AIDraw – AI-Powered Drawing Web Application
 
 AIDraw is a full-stack web application that allows users to **create drawings**, **save them** and **generate AI-powered artwork** using the OpenAI API.  
-The project is built with **ASP.NET Core Web API** (backend) and **ASP.NET Core MVC** (frontend), following a clean separation of concerns.
+The project is built with **ASP.NET Core Web API** (backend) and **ASP.NET Core MVC** (frontend).
 
 ---
 
@@ -33,8 +33,7 @@ The project is built with **ASP.NET Core Web API** (backend) and **ASP.NET Core 
 - ASP.NET Core Web API
 - Entity Framework Core
 - SQL Server
-- Dependencies injection
-- RESTful API design
+- RESTful API
 
 ### Frontend
 - ASP.NET Core MVC
